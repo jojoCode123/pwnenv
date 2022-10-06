@@ -56,6 +56,7 @@ RUN apt-get update && \
     texinfo\
     libc6-armel-cross\
     gdb-multiarch\
+    gdb\
     # ctfmate
     patchelf\
     elfutils
@@ -108,16 +109,35 @@ RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install --user ROPGadget && \
     python3 -m pip install --user sagemath numpy
 
-# install gdb
-# fixes https://github.com/Gallopsled/pwntools/issues/1783
-RUN cd /tmp && \
-wget https://sourceware.org/pub/gdb/snapshots/current/gdb-weekly-11.0.50.20210701.tar.xz -O gdb.tar.xz && \
-tar xf gdb.tar.xz && \
-cd gdb-* && \
-./configure --with-python=/usr/bin/python3 && make -j8 && make install
-
 # Downgrade unicorn package to prevent pwntools crash
 RUN pip3 install unicorn==1.0.3
+
+# ----- Build Tools ----- #
+RUN pip3 install meson ninja
+
+# # install gdb
+# RUN cd /tmp && \
+# wget https://sourceware.org/pub/gdb/snapshots/current/gdb-13.0.50.20220822.tar.xz -O gdb.tar.xz && \
+# tar xf gdb.tar.xz && \
+# cd gdb-13.0.50.20220822 && \
+# ./configure && make -j8 && make install
+
+#rizin
+RUN git clone https://github.com/rizinorg/rizin && \
+    cd rizin && \
+    meson --buildtype=release build && \
+    ninja -C build && \
+    ninja -C build install
+
+#rz-ghidra
+RUN git clone https://github.com/rizinorg/rz-ghidra && \
+    cd rz-ghidra && \
+    git submodule init && \
+    git submodule update && \
+    mkdir build && cd build && \
+    cmake -DCMAKE_INSTALL_PREFIX=~/.local/ .. && \
+    make && \
+    make install
 
 # pwndbg
 RUN git clone https://github.com/pwndbg/pwndbg
@@ -189,11 +209,8 @@ RUN apt install -y zstd && \
 
 # Kernel Stuff
 WORKDIR /usr/bin
-COPY ./files/decompressKernel.sh /usr/bin/decompressKernel
 RUN wget -O extract-vmlinux https://raw.githubusercontent.com/torvalds/linux/master/scripts/extract-vmlinux && \
-    apt-get install cpio && \
-    python3 -m pip install --upgrade git+https://github.com/marin-m/vmlinux-to-elf && \
-    chmod +x /usr/bin/decompressKernel
+    python3 -m pip install --upgrade git+https://github.com/marin-m/vmlinux-to-elf
 
 WORKDIR /root/data
 RUN rm -rf /tmp/*
